@@ -1,8 +1,13 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Dict
 
-app = FastAPI()
+from database import create_document
+from schemas import ContactMessage
+
+app = FastAPI(title="Freelancer Portfolio API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -14,7 +19,7 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"message": "Hello from FastAPI Backend!"}
+    return {"message": "Freelancer Portfolio Backend Ready"}
 
 @app.get("/api/hello")
 def hello():
@@ -63,6 +68,26 @@ def test_database():
     response["database_name"] = "✅ Set" if os.getenv("DATABASE_NAME") else "❌ Not Set"
     
     return response
+
+
+class BriefRequest(BaseModel):
+    name: str
+    email: str
+    project_type: str
+    description: str
+
+@app.post("/api/contact")
+def create_contact(message: ContactMessage) -> Dict[str, str]:
+    try:
+        inserted_id = create_document("contactmessage", message)
+        return {"status": "ok", "id": inserted_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/brief")
+def project_brief(brief: BriefRequest) -> Dict[str, str]:
+    # In a real app, you might trigger email/Slack here. For now we just ack.
+    return {"status": "received", "message": f"Thanks {brief.name}, I will get back to you shortly."}
 
 
 if __name__ == "__main__":
